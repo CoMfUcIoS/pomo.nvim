@@ -2,8 +2,17 @@ local TimerStore = require "pomo.timer_store"
 
 local M = {}
 
-local timers = TimerStore.new "timestore_state.json"
+local timers = TimerStore.new(vim.fn.stdpath "state" .. "/timestore_state.txt")
 
+-- Start timers that are already in the store
+for _, timer in ipairs(timers:get_all()) do
+  timer:start(function(t)
+    timers:remove(t)
+    if t.opts and t.opts.timer_done then
+      t.opts.timer_done()
+    end
+  end)
+end
 ---Setup pomo.nvim.
 ---@param opts table|pomo.Config
 M.setup = function(opts)

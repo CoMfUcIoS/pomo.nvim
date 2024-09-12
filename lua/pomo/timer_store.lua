@@ -2,7 +2,6 @@
 ---@class pomo.TimerStore
 ---@field timers pomo.Timer[]
 local TimerStore = {}
-local json = require "json" -- Assuming a JSON library is available
 ---Initialize a new `pomo.TimerStore`.
 ---@return pomo.TimerStore
 TimerStore.new = function(filename)
@@ -10,6 +9,8 @@ TimerStore.new = function(filename)
   self.timers = {}
   if filename and io.open(filename, "r") then
     self:load_from_file(filename)
+  else
+    print "No file found"
   end
   return self
 end
@@ -147,8 +148,9 @@ end
 function TimerStore:save_to_file(filename)
   local file = io.open(filename, "w")
   if file then
-    local data = json.encode(self.timers)
-    file:write(data)
+    for _, timer in pairs(self.timers) do
+      file:write(timer.id .. "," .. timer.start_time .. "," .. timer.duration .. "\n")
+    end
     file:close()
   else
     error("Could not open file for writing: " .. filename)
@@ -160,8 +162,11 @@ end
 function TimerStore:load_from_file(filename)
   local file = io.open(filename, "r")
   if file then
-    local data = file:read "*a"
-    self.timers = json.decode(data)
+    for line in file:lines() do
+      local id, start_time, duration = line:match "([^,]+),([^,]+),([^,]+)"
+      self.timers[tonumber(id)] =
+        { id = tonumber(id), start_time = tonumber(start_time), duration = tonumber(duration) }
+    end
     file:close()
   else
     error("Could not open file for reading: " .. filename)
