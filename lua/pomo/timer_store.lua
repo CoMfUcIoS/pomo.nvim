@@ -2,12 +2,15 @@
 ---@class pomo.TimerStore
 ---@field timers pomo.Timer[]
 local TimerStore = {}
-
+local json = require "json" -- Assuming a JSON library is available
 ---Initialize a new `pomo.TimerStore`.
 ---@return pomo.TimerStore
-TimerStore.new = function()
+TimerStore.new = function(filename)
   local self = setmetatable({}, { __index = TimerStore })
   self.timers = {}
+  if filename and io.open(filename, "r") then
+    self:load_from_file(filename)
+  end
   return self
 end
 
@@ -36,14 +39,17 @@ end
 
 ---Store a new timer.
 ---@param timer pomo.Timer
-TimerStore.store = function(self, timer)
+TimerStore.store = function(self, timer, filename)
   assert(self.timers[timer.id] == nil)
   self.timers[timer.id] = timer
+  if filename then
+    self:save_to_file(filename)
+  end
 end
 
 ---Remove a timer from the store.
 ---@param timer integer|pomo.Timer
-TimerStore.remove = function(self, timer)
+TimerStore.remove = function(self, timer, filename)
   ---@type integer
   local timer_id
   if type(timer) == "number" then
@@ -53,6 +59,9 @@ TimerStore.remove = function(self, timer)
   end
 
   self.timers[timer_id] = nil
+  if filename then
+    self:save_to_file(filename)
+  end
 end
 
 ---Get a timer from the store by its ID.
@@ -110,16 +119,16 @@ end
 ---Pop a timer from the store. If no ID is given, the latest timer is popped.
 ---@param timer_id integer|?
 ---@return pomo.Timer|?
-TimerStore.pop = function(self, timer_id)
+TimerStore.pop = function(self, timer_id, filename)
   if timer_id == nil then
     if self:len() == 1 then
       -- note that the `#` operator always returns the highest non-nil index in an array,
       -- not necessarily its length, which is why this works.
-      return self:pop(#self.timers)
+      return self:pop(#self.timers, filename)
     else
       local latest_timer = self:get_latest()
       if latest_timer ~= nil then
-        return self:pop(latest_timer.id)
+        return self:pop(latest_timer.id, filename)
       else
         return nil
       end
@@ -127,10 +136,35 @@ TimerStore.pop = function(self, timer_id)
   else
     local timer = self:get(timer_id)
     if timer ~= nil then
-      self:remove(timer)
+      self:remove(timer, filename)
     end
     return timer
   end
 end
 
+---Save the current state of timers to a file.
+---@param filename string
+function TimerStore:save_to_file(filename)
+  local file = io.open(filename, "w")
+  if file then
+    local data = json.encode(self.timers)
+    file:write(data)
+    file:close()
+  else
+    error("Could not open file for writing: " .. filename)
+  end
+end
+
+---Load the state of timers from a file.
+---@param filename string
+function TimerStore:load_from_file(filename)
+  local file = io.open(filename, "r")
+  if file then
+    local data = file:read "*a"
+    self.timers = json.decode(data)
+    file:close()
+  else
+    error("Could not open file for reading: " .. filename)
+  end
+end
 return TimerStore

@@ -2,7 +2,7 @@ local TimerStore = require "pomo.timer_store"
 
 local M = {}
 
-local timers = TimerStore.new()
+local timers = TimerStore.new "timestore_state.json"
 
 ---Setup pomo.nvim.
 ---@param opts table|pomo.Config
