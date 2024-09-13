@@ -134,11 +134,14 @@ Timer.start = function(self, timer_done)
     self.config.update_interval,
     vim.schedule_wrap(function()
       local time_left = assert(self:time_remaining())
+      local timer_store = require "pomo.timer_store"
 
       if time_left > 0 then
         for _, noti in ipairs(self.notifiers) do
           noti:tick(time_left)
         end
+        -- Update the timer in the stored file
+        timer_store.update_saved_timer(timer_store, self)
       else
         for _, noti in ipairs(self.notifiers) do
           noti:done()
@@ -166,6 +169,8 @@ end
 ---Stop the timer.
 Timer.stop = function(self)
   self.timer:close()
+  local timer_store = require "pomo.timer_store"
+  timer_store.update_saved_timer(timer_store, self)
   for _, noti in ipairs(self.notifiers) do
     noti:stop()
   end
@@ -176,6 +181,8 @@ Timer.pause = function(self)
   if self.start_time ~= nil and not self.paused then
     self.paused_at = now()
     self.paused = true
+    local timer_store = require "pomo.timer_store"
+    timer_store.update_saved_timer(timer_store, self)
   end
 end
 
@@ -188,6 +195,8 @@ Timer.resume = function(self)
     self.resumed_at = current_time
     self.paused_at = nil
     self.paused = false
+    local timer_store = require "pomo.timer_store"
+    timer_store.update_saved_timer(timer_store, self)
   end
 end
 
@@ -213,5 +222,43 @@ end
 ---@class uv_timer_t
 ---@field start function
 ---@field close function
+
+---Load timers from a state file.
+---@return pomo.Timer[] A list of loaded timers.
+Timer.load = function(line, config)
+  local id, time_limit, name, start_time, max_repetitions, repetitions, paused, paused_at, time_paused, resumed_at =
+    line:match "([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)"
+
+  local timer =
+    Timer.new(tonumber(id), tonumber(time_limit), name ~= "" and name or nil, config, tonumber(max_repetitions))
+  timer.start_time = tonumber(start_time)
+  timer.paused = paused == "true"
+  timer.paused_at = tonumber(paused_at)
+  timer.time_paused = tonumber(time_paused)
+  timer.resumed_at = tonumber(resumed_at)
+  timer.repetitions = tonumber(repetitions)
+  timer.timer = vim.loop.new_timer() ---@diagnostic disable-line: undefined-field
+  timer.notifiers = {}
+
+  return timer
+end
+
+---Return a line to be stored with the data of the timer.
+---@return string
+Timer.store = function(self)
+  return string.format(
+    "%d,%d,%s,%d,%d,%d,%s,%d,%d,%d",
+    self.id,
+    self.time_limit,
+    self.name or "",
+    self.start_time or 0,
+    self.max_repetitions or 0,
+    self.repetitions,
+    tostring(self.paused),
+    self.paused_at or 0,
+    self.time_paused,
+    self.resumed_at or 0
+  )
+end
 
 return Timer
