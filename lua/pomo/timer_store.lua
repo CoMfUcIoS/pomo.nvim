@@ -19,11 +19,11 @@ TimerStore.new = function(configuration)
       file:close()
       self:load_from_file()
     else
-      print "File not found, creating a new one."
+      print "State file not found, creating a new one."
       self:save_to_file()
     end
   else
-    print "No filename provided"
+    print "No state filename provided"
   end
   return self
 end
@@ -202,21 +202,13 @@ function TimerStore:update_saved_timer(timer, delete)
   local Timer = require "pomo.timer"
   local timers = {}
   local file = io.open(filename, "r")
-  print("Updating timer " .. timer.id .. " in file " .. filename .. " with delete: " .. tostring(delete))
 
   if file then
-    print "Reading file"
-    print "file content: "
     for line in file:lines() do
-      print(line)
-    end
-    for line in file:lines() do
-      print("Reading line: " .. line)
       local existing_timer = Timer.load(line, config)
-      print("Loaded timer " .. existing_timer.id .. " from line: " .. line)
       if existing_timer and existing_timer.id then
         if delete and existing_timer.id == timer.id then
-          print("Deleting timer " .. existing_timer.id)
+          -- do nothing
         else
           timers[existing_timer.id] = existing_timer
         end
