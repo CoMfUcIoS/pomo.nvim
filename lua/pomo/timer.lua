@@ -169,11 +169,11 @@ end
 ---Stop the timer.
 Timer.stop = function(self)
   self.timer:close()
-  local timer_store = require "pomo.timer_store"
-  timer_store.update_saved_timer(timer_store, self)
   for _, noti in ipairs(self.notifiers) do
     noti:stop()
   end
+  local timer_store = require "pomo.timer_store"
+  timer_store.update_saved_timer(timer_store, self, true)
 end
 
 ---Pause the timer.
